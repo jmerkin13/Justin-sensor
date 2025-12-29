@@ -1,6 +1,6 @@
 /* extension.js
  *
- * Justin Sensors - GNOME Shell Extension
+ * Detailed Sensor - GNOME Shell Extension
  * Displays CPU, RAM, and GPU stats in the top panel
  *
  * For GNOME Shell 42
@@ -50,9 +50,9 @@ const REGEX_FAN5 = /fan5:\s+(\d+)\s*RPM/i;
 let SystemMonitorIndicator = GObject.registerClass(
 class SystemMonitorIndicator extends PanelMenu.Button {
     _init() {
-        super._init(0.0, 'Justin Sensors');
+        super._init(0.0, 'Detailed Sensor');
 
-        this._settings = ExtensionUtils.getSettings('org.gnome.shell.extensions.justin-sensors');
+        this._settings = ExtensionUtils.getSettings('org.gnome.shell.extensions.detailed_sensor');
 
         // State variables
         this._prevCpuStats = null;
@@ -322,8 +322,6 @@ class SystemMonitorIndicator extends PanelMenu.Button {
                     flags: Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
                 });
 
-                proc.init(null);
-
                 proc.communicate_utf8_async(null, null, (proc, res) => {
                     try {
                         const [ok, stdout, stderr] = proc.communicate_utf8_finish(res);
@@ -489,9 +487,9 @@ class Extension {
 
     enable() {
         this._indicator = new SystemMonitorIndicator();
-        const settings = ExtensionUtils.getSettings('org.gnome.shell.extensions.justin-sensors');
+        const settings = ExtensionUtils.getSettings('org.gnome.shell.extensions.detailed_sensor');
         const position = settings.get_string('panel-position');
-        Main.panel.addToStatusArea('justin-sensors', this._indicator, 0, position);
+        Main.panel.addToStatusArea('detailed_sensor', this._indicator, 0, position);
     }
 
     disable() {

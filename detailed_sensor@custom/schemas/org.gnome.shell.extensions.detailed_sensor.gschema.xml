@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<schemalist gettext-domain="justin-sensors">
-  <schema id="org.gnome.shell.extensions.justin-sensors" path="/org/gnome/shell/extensions/justin-sensors/">
+<schemalist gettext-domain="detailed_sensor">
+  <schema id="org.gnome.shell.extensions.detailed_sensor" path="/org/gnome/shell/extensions/detailed_sensor/">
 
     <!-- General Settings -->
     <key name="refresh-interval" type="i">

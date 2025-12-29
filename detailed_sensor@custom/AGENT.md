@@ -1,4 +1,4 @@
-# AI Agent Instructions for Justin Sensors
+# AI Agent Instructions for Detailed Sensor
 
 This file provides instructions for AI agents (Jules, Gemini, Claude, Copilot, etc.) working on this GNOME Shell extension.
 
@@ -6,7 +6,7 @@ This file provides instructions for AI agents (Jules, Gemini, Claude, Copilot, e
 
 | Item | Value |
 |------|-------|
-| Extension UUID | `justin-sensors@custom` |
+| Extension UUID | `detailed_sensor@custom` |
 | GNOME Version | 42 (Ubuntu 22.04 LTS) |
 | Display Server | X11 |
 | Language | JavaScript (GJS) |
@@ -16,13 +16,13 @@ This file provides instructions for AI agents (Jules, Gemini, Claude, Copilot, e
 ## File Overview
 
 ```
-justin-sensors@custom/
+detailed_sensor@custom/
 ├── extension.js          # Main extension - panel indicator, sensor reading
 ├── prefs.js              # Preferences window (GTK4/Adw)
 ├── metadata.json         # Extension metadata
 ├── stylesheet.css        # Panel widget styling
 ├── schemas/
-│   └── org.gnome.shell.extensions.justin-sensors.gschema.xml
+│   └── org.gnome.shell.extensions.detailed_sensor.gschema.xml
 ├── icons/
 │   ├── cpu.png           # CPU icon (colored PNG)
 │   ├── ram.png           # RAM icon (colored PNG)
@@ -56,7 +56,7 @@ justin-sensors@custom/
 
 ## Settings Schema
 
-Schema ID: `org.gnome.shell.extensions.justin-sensors`
+Schema ID: `org.gnome.shell.extensions.detailed_sensor`
 
 ### Current Keys
 
@@ -122,17 +122,17 @@ journalctl -f -o cat /usr/bin/gnome-shell
 # Press Alt+F2, type 'r', press Enter
 
 # Enable/disable extension
-gnome-extensions enable justin-sensors@custom
-gnome-extensions disable justin-sensors@custom
+gnome-extensions enable detailed_sensor@custom
+gnome-extensions disable detailed_sensor@custom
 
 # Open preferences
-gnome-extensions prefs justin-sensors@custom
+gnome-extensions prefs detailed_sensor@custom
 
 # Reset all settings
-dconf reset -f /org/gnome/shell/extensions/justin-sensors/
+dconf reset -f /org/gnome/shell/extensions/detailed_sensor/
 
 # Recompile schemas after changes
-glib-compile-schemas ~/.local/share/gnome-shell/extensions/justin-sensors@custom/schemas/
+glib-compile-schemas ~/.local/share/gnome-shell/extensions/detailed_sensor@custom/schemas/
 
 # Test sensor commands
 cat /proc/stat | head -1
@@ -145,7 +145,7 @@ sensors | grep -E 'fan5|temp'
 
 ### Reading Settings
 ```javascript
-const settings = ExtensionUtils.getSettings('org.gnome.shell.extensions.justin-sensors');
+const settings = ExtensionUtils.getSettings('org.gnome.shell.extensions.detailed_sensor');
 const value = settings.get_int('refresh-interval');
 const color = settings.get_string('cpu-value-color');
 const enabled = settings.get_boolean('show-cpu');

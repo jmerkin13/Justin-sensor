@@ -1,6 +1,6 @@
 /* prefs.js
  *
- * Justin Sensors - Preferences
+ * Detailed Sensor - Preferences
  * Settings UI for the extension
  *
  * For GNOME Shell 42 (GTK4 + Adw)
@@ -16,7 +16,7 @@ function init() {
 }
 
 function fillPreferencesWindow(window) {
-    const settings = ExtensionUtils.getSettings('org.gnome.shell.extensions.justin-sensors');
+    const settings = ExtensionUtils.getSettings('org.gnome.shell.extensions.detailed_sensor');
 
     // Create General page
     const generalPage = new Adw.PreferencesPage({
@@ -500,7 +500,7 @@ function fillPreferencesWindow(window) {
     aboutPage.add(aboutGroup);
 
     const aboutRow = new Adw.ActionRow({
-        title: 'Justin Sensors',
+        title: 'Detailed Sensor',
         subtitle: 'Display CPU, RAM, and GPU stats in the top panel\n\nVersion 1.0'
     });
     aboutGroup.add(aboutRow);
