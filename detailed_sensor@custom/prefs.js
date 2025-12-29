@@ -1,6 +1,6 @@
 /* prefs.js
  *
- * Justin Sensors - Preferences
+ * Detailed Sensor - Preferences
  * Settings UI for the extension
  *
  * For GNOME Shell 42 (GTK4 + Adw)
@@ -16,7 +16,7 @@ function init() {
 }
 
 function fillPreferencesWindow(window) {
-    const settings = ExtensionUtils.getSettings('org.gnome.shell.extensions.justin-sensors');
+    const settings = ExtensionUtils.getSettings('org.gnome.shell.extensions.detailed_sensor');
 
     // Create General page
     const generalPage = new Adw.PreferencesPage({
@@ -120,6 +120,24 @@ function fillPreferencesWindow(window) {
     settings.bind('show-cpu-temp', cpuTempSwitch, 'active', Gio.SettingsBindFlags.DEFAULT);
     cpuTempRow.add_suffix(cpuTempSwitch);
     cpuTempRow.set_activatable_widget(cpuTempSwitch);
+
+    // CPU Temp Custom Path
+    const cpuTempPathRow = new Adw.ActionRow({
+        title: 'CPU Temp Path',
+        subtitle: 'Custom path (leave empty for auto-detect)'
+    });
+    cpuGroup.add(cpuTempPathRow);
+
+    const cpuTempPathEntry = new Gtk.Entry({
+        placeholder_text: '/sys/class/thermal/...',
+        text: settings.get_string('cpu-temp-path'),
+        valign: Gtk.Align.CENTER,
+        width_chars: 25
+    });
+    cpuTempPathEntry.connect('changed', () => {
+        settings.set_string('cpu-temp-path', cpuTempPathEntry.get_text());
+    });
+    cpuTempPathRow.add_suffix(cpuTempPathEntry);
 
     // CPU icon size
     const cpuIconSizeRow = new Adw.ActionRow({
@@ -482,7 +500,7 @@ function fillPreferencesWindow(window) {
     aboutPage.add(aboutGroup);
 
     const aboutRow = new Adw.ActionRow({
-        title: 'Justin Sensors',
+        title: 'Detailed Sensor',
         subtitle: 'Display CPU, RAM, and GPU stats in the top panel\n\nVersion 1.0'
     });
     aboutGroup.add(aboutRow);

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<schemalist gettext-domain="justin-sensors">
-  <schema id="org.gnome.shell.extensions.justin-sensors" path="/org/gnome/shell/extensions/justin-sensors/">
+<schemalist gettext-domain="detailed_sensor">
+  <schema id="org.gnome.shell.extensions.detailed_sensor" path="/org/gnome/shell/extensions/detailed_sensor/">
 
     <!-- General Settings -->
     <key name="refresh-interval" type="i">
@@ -26,6 +26,12 @@
       <default>true</default>
       <summary>Show CPU temperature</summary>
       <description>Show CPU temperature next to usage</description>
+    </key>
+
+    <key name="cpu-temp-path" type="s">
+      <default>''</default>
+      <summary>CPU temperature path</summary>
+      <description>Custom path to CPU temperature file (overrides auto-detection)</description>
     </key>
 
     <key name="cpu-icon-size" type="i">
