@@ -278,6 +278,24 @@ function fillPreferencesWindow(window) {
     });
     ramValueColorRow.add_suffix(ramValueColorButton);
 
+    // RAM Custom Path
+    const ramPathRow = new Adw.ActionRow({
+        title: 'RAM Path',
+        subtitle: 'Custom path (default: /proc/meminfo)'
+    });
+    ramGroup.add(ramPathRow);
+
+    const ramPathEntry = new Gtk.Entry({
+        placeholder_text: '/proc/meminfo',
+        text: settings.get_string('ram-path'),
+        valign: Gtk.Align.CENTER,
+        width_chars: 25
+    });
+    ramPathEntry.connect('changed', () => {
+        settings.set_string('ram-path', ramPathEntry.get_text());
+    });
+    ramPathRow.add_suffix(ramPathEntry);
+
     // GPU group
     const gpuGroup = new Adw.PreferencesGroup({
         title: 'GPU (NVIDIA)',
@@ -381,6 +399,58 @@ function fillPreferencesWindow(window) {
         settings.set_string('gpu-temp-color', color);
     });
     gpuTempColorRow.add_suffix(gpuTempColorButton);
+
+    // GPU Memory
+    const gpuMemRow = new Adw.ActionRow({
+        title: 'Show GPU Memory',
+        subtitle: 'Show GPU memory usage (utilization.memory)'
+    });
+    gpuGroup.add(gpuMemRow);
+
+    const gpuMemSwitch = new Gtk.Switch({
+        active: settings.get_boolean('show-gpu-memory'),
+        valign: Gtk.Align.CENTER
+    });
+    settings.bind('show-gpu-memory', gpuMemSwitch, 'active', Gio.SettingsBindFlags.DEFAULT);
+    gpuMemRow.add_suffix(gpuMemSwitch);
+
+    // GPU Memory Color
+    const gpuMemColorRow = new Adw.ActionRow({
+        title: 'GPU Memory Color',
+        subtitle: 'Color for GPU memory usage'
+    });
+    gpuGroup.add(gpuMemColorRow);
+
+    const gpuMemColorButton = new Gtk.ColorButton({
+        valign: Gtk.Align.CENTER,
+        use_alpha: false
+    });
+    const gpuMemRgba = new Gdk.RGBA();
+    gpuMemRgba.parse(settings.get_string('gpu-memory-color'));
+    gpuMemColorButton.set_rgba(gpuMemRgba);
+    gpuMemColorButton.connect('color-set', () => {
+        const color = gpuMemColorButton.get_rgba().to_string();
+        settings.set_string('gpu-memory-color', color);
+    });
+    gpuMemColorRow.add_suffix(gpuMemColorButton);
+
+    // GPU Custom Command
+    const gpuCommandRow = new Adw.ActionRow({
+        title: 'GPU Command',
+        subtitle: 'Custom command (default: nvidia-smi...)'
+    });
+    gpuGroup.add(gpuCommandRow);
+
+    const gpuCommandEntry = new Gtk.Entry({
+        placeholder_text: 'nvidia-smi ...',
+        text: settings.get_string('gpu-command'),
+        valign: Gtk.Align.CENTER,
+        width_chars: 25
+    });
+    gpuCommandEntry.connect('changed', () => {
+        settings.set_string('gpu-command', gpuCommandEntry.get_text());
+    });
+    gpuCommandRow.add_suffix(gpuCommandEntry);
 
     // GPU fan (water pump) toggle
     const gpuFanRow = new Adw.ActionRow({

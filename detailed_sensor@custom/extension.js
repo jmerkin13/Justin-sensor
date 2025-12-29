@@ -37,6 +37,7 @@ const SENSORS = {
         icon: 'gpu.png',
         hasTemp: true,
         hasFan: true,
+        hasMemory: true,
         order: 2
     }
 };
@@ -133,6 +134,18 @@ class SystemMonitorIndicator extends PanelMenu.Button {
                 container.add_child(tempLabel);
             }
 
+            // Memory label (GPU)
+            let memoryLabel = null;
+            if (sensor.hasMemory) {
+                memoryLabel = new St.Label({
+                    text: '---%',
+                    style_class: 'system-monitor-value', // reuse value style or add new one? Using value style for now
+                    y_align: Clutter.ActorAlign.CENTER,
+                    visible: this._settings.get_boolean(`show-${sensor.id}-memory`)
+                });
+                container.add_child(memoryLabel);
+            }
+
             // Fan label
             let fanLabel = null;
             if (sensor.hasFan) {
@@ -152,6 +165,7 @@ class SystemMonitorIndicator extends PanelMenu.Button {
                 icon,
                 valueLabel,
                 tempLabel,
+                memoryLabel,
                 fanLabel
             };
         }
@@ -186,6 +200,15 @@ class SystemMonitorIndicator extends PanelMenu.Button {
                 if (showTemp) {
                     const tempColor = this._settings.get_string(`${sensor.id}-temp-color`);
                     widget.tempLabel.style = `color: ${tempColor}; font-size: ${tempFontSize}px; font-weight: bold;`;
+                }
+            }
+
+            if (widget.memoryLabel) {
+                const showMem = this._settings.get_boolean(`show-${sensor.id}-memory`);
+                widget.memoryLabel.visible = showMem;
+                if (showMem) {
+                    const memColor = this._settings.get_string(`${sensor.id}-memory-color`);
+                    widget.memoryLabel.style = `color: ${memColor}; font-size: ${valueFontSize}px; font-weight: bold;`;
                 }
             }
 
@@ -227,11 +250,11 @@ class SystemMonitorIndicator extends PanelMenu.Button {
     _connectSettings() {
         // Re-apply styles on changes
         const styleKeys = [
-            'show-cpu', 'show-ram', 'show-gpu', 'show-cpu-temp', 'show-gpu-temp', 'show-gpu-fan',
+            'show-cpu', 'show-ram', 'show-gpu', 'show-cpu-temp', 'show-gpu-temp', 'show-gpu-fan', 'show-gpu-memory',
             'cpu-icon-size', 'ram-icon-size', 'gpu-icon-size',
             'cpu-value-color', 'cpu-temp-color',
             'ram-value-color',
-            'gpu-value-color', 'gpu-temp-color', 'gpu-fan-color',
+            'gpu-value-color', 'gpu-temp-color', 'gpu-fan-color', 'gpu-memory-color',
             'value-font-size', 'temp-font-size'
         ];
 
@@ -414,7 +437,11 @@ class SystemMonitorIndicator extends PanelMenu.Button {
         const widget = this._sensorWidgets['ram'];
 
         try {
-            const contents = await this._getFileContentsAsync('/proc/meminfo');
+            // Check for custom path
+            let ramPath = this._settings.get_string('ram-path');
+            if (!ramPath) ramPath = '/proc/meminfo';
+
+            const contents = await this._getFileContentsAsync(ramPath);
             const memTotalMatch = contents.match(REGEX_RAM_TOTAL);
             const memAvailableMatch = contents.match(REGEX_RAM_AVAIL);
 
@@ -432,21 +459,68 @@ class SystemMonitorIndicator extends PanelMenu.Button {
     async _updateGpu() {
         const widget = this._sensorWidgets['gpu'];
 
-        // NVIDIA GPU
+        // GPU Stats
         try {
-            const output = await this._execCommandAsync('nvidia-smi --query-gpu=utilization.gpu,temperature.gpu --format=csv,noheader,nounits');
-            const parts = output.trim().split(',').map(s => s.trim());
+            // Check for custom command
+            let gpuCmd = this._settings.get_string('gpu-command');
+            // Default command includes headers for dynamic parsing and adds memory
+            if (!gpuCmd) gpuCmd = 'nvidia-smi --query-gpu=utilization.gpu,temperature.gpu,utilization.memory --format=csv,nounits';
 
-            if (parts.length >= 1) {
-                widget.valueLabel.set_text(parts[0] + '%');
+            const output = await this._execCommandAsync(gpuCmd);
+            const lines = output.trim().split('\n');
+
+            let utilIdx = -1;
+            let tempIdx = -1;
+            let memIdx = -1;
+            let dataParts = [];
+
+            if (lines.length >= 2) {
+                // Parse Header
+                const header = lines[0].toLowerCase();
+                const headers = header.split(',').map(s => s.trim());
+
+                utilIdx = headers.indexOf('utilization.gpu [%]') !== -1 ? headers.indexOf('utilization.gpu [%]') : headers.indexOf('utilization.gpu');
+                tempIdx = headers.indexOf('temperature.gpu') !== -1 ? headers.indexOf('temperature.gpu') : -1;
+                // nvidia-smi csv headers often include units, check loosely
+                if (utilIdx === -1) utilIdx = headers.findIndex(h => h.includes('utilization.gpu'));
+                if (tempIdx === -1) tempIdx = headers.findIndex(h => h.includes('temperature.gpu'));
+                memIdx = headers.findIndex(h => h.includes('utilization.memory'));
+
+                dataParts = lines[1].split(',').map(s => s.trim());
+            } else if (lines.length === 1) {
+                // No header (user might have customized command with noheader)
+                // Fallback to default indices if using default command structure?
+                // Or just try 0, 1, 2
+                dataParts = lines[0].split(',').map(s => s.trim());
+                utilIdx = 0;
+                tempIdx = 1;
+                memIdx = 2;
             }
 
-            if (widget.tempLabel && widget.tempLabel.visible && parts.length >= 2) {
-                widget.tempLabel.set_text(parts[1] + '°C');
+            if (utilIdx !== -1 && dataParts[utilIdx] !== undefined) {
+                widget.valueLabel.set_text(dataParts[utilIdx] + '%');
             }
+
+            if (widget.tempLabel && widget.tempLabel.visible) {
+                if (tempIdx !== -1 && dataParts[tempIdx] !== undefined) {
+                    widget.tempLabel.set_text(dataParts[tempIdx] + '°C');
+                } else {
+                    widget.tempLabel.set_text('N/A');
+                }
+            }
+
+            if (widget.memoryLabel && widget.memoryLabel.visible) {
+                if (memIdx !== -1 && dataParts[memIdx] !== undefined) {
+                    widget.memoryLabel.set_text(dataParts[memIdx] + '%');
+                } else {
+                    widget.memoryLabel.set_text('N/A');
+                }
+            }
+
         } catch (e) {
             widget.valueLabel.set_text('N/A');
             if (widget.tempLabel) widget.tempLabel.set_text('N/A');
+            if (widget.memoryLabel) widget.memoryLabel.set_text('N/A');
         }
 
         // Fan (Water Pump)
