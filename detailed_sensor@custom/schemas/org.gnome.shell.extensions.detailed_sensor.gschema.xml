@@ -108,6 +108,18 @@
       <description>Color for GPU temperature</description>
     </key>
 
+    <key name="show-gpu-memory" type="b">
+      <default>false</default>
+      <summary>Show GPU memory</summary>
+      <description>Show GPU memory usage</description>
+    </key>
+
+    <key name="gpu-memory-color" type="s">
+      <default>'#ff00ff'</default>
+      <summary>GPU memory color</summary>
+      <description>Color for GPU memory usage</description>
+    </key>
+
     <key name="gpu-command" type="s">
       <default>''</default>
       <summary>GPU command</summary>

@@ -400,6 +400,40 @@ function fillPreferencesWindow(window) {
     });
     gpuTempColorRow.add_suffix(gpuTempColorButton);
 
+    // GPU Memory
+    const gpuMemRow = new Adw.ActionRow({
+        title: 'Show GPU Memory',
+        subtitle: 'Show GPU memory usage (utilization.memory)'
+    });
+    gpuGroup.add(gpuMemRow);
+
+    const gpuMemSwitch = new Gtk.Switch({
+        active: settings.get_boolean('show-gpu-memory'),
+        valign: Gtk.Align.CENTER
+    });
+    settings.bind('show-gpu-memory', gpuMemSwitch, 'active', Gio.SettingsBindFlags.DEFAULT);
+    gpuMemRow.add_suffix(gpuMemSwitch);
+
+    // GPU Memory Color
+    const gpuMemColorRow = new Adw.ActionRow({
+        title: 'GPU Memory Color',
+        subtitle: 'Color for GPU memory usage'
+    });
+    gpuGroup.add(gpuMemColorRow);
+
+    const gpuMemColorButton = new Gtk.ColorButton({
+        valign: Gtk.Align.CENTER,
+        use_alpha: false
+    });
+    const gpuMemRgba = new Gdk.RGBA();
+    gpuMemRgba.parse(settings.get_string('gpu-memory-color'));
+    gpuMemColorButton.set_rgba(gpuMemRgba);
+    gpuMemColorButton.connect('color-set', () => {
+        const color = gpuMemColorButton.get_rgba().to_string();
+        settings.set_string('gpu-memory-color', color);
+    });
+    gpuMemColorRow.add_suffix(gpuMemColorButton);
+
     // GPU Custom Command
     const gpuCommandRow = new Adw.ActionRow({
         title: 'GPU Command',
