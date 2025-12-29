@@ -1,0 +1,9 @@
+{
+    "uuid": "justin-sensors@custom",
+    "name": "Justin Sensors",
+    "description": "Display CPU, RAM, and GPU usage and temperatures in the top panel with custom icons",
+    "version": 1,
+    "shell-version": ["42"],
+    "settings-schema": "org.gnome.shell.extensions.justin-sensors",
+    "url": ""
+}

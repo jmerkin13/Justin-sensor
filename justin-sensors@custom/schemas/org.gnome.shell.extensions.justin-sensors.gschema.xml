@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist gettext-domain="justin-sensors">
+  <schema id="org.gnome.shell.extensions.justin-sensors" path="/org/gnome/shell/extensions/justin-sensors/">
+
+    <!-- General Settings -->
+    <key name="refresh-interval" type="i">
+      <default>1000</default>
+      <summary>Refresh interval</summary>
+      <description>How often to refresh sensor data in milliseconds</description>
+    </key>
+
+    <key name="panel-position" type="s">
+      <default>'right'</default>
+      <summary>Panel position</summary>
+      <description>Position in the top panel (left, center, right)</description>
+    </key>
+
+    <!-- CPU Settings -->
+    <key name="show-cpu" type="b">
+      <default>true</default>
+      <summary>Show CPU</summary>
+      <description>Show CPU usage in the panel</description>
+    </key>
+
+    <key name="show-cpu-temp" type="b">
+      <default>true</default>
+      <summary>Show CPU temperature</summary>
+      <description>Show CPU temperature next to usage</description>
+    </key>
+
+    <key name="cpu-icon-size" type="i">
+      <default>18</default>
+      <summary>CPU icon size</summary>
+      <description>Size of CPU icon in pixels</description>
+    </key>
+
+    <key name="cpu-value-color" type="s">
+      <default>'#ff00ff'</default>
+      <summary>CPU value color</summary>
+      <description>Color for CPU usage percentage</description>
+    </key>
+
+    <key name="cpu-temp-color" type="s">
+      <default>'#ff00ff'</default>
+      <summary>CPU temperature color</summary>
+      <description>Color for CPU temperature</description>
+    </key>
+
+    <!-- RAM Settings -->
+    <key name="show-ram" type="b">
+      <default>true</default>
+      <summary>Show RAM</summary>
+      <description>Show RAM usage in the panel</description>
+    </key>
+
+    <key name="ram-icon-size" type="i">
+      <default>18</default>
+      <summary>RAM icon size</summary>
+      <description>Size of RAM icon in pixels</description>
+    </key>
+
+    <key name="ram-value-color" type="s">
+      <default>'#ff00ff'</default>
+      <summary>RAM value color</summary>
+      <description>Color for RAM usage percentage</description>
+    </key>
+
+    <!-- GPU Settings -->
+    <key name="show-gpu" type="b">
+      <default>true</default>
+      <summary>Show GPU</summary>
+      <description>Show GPU usage in the panel</description>
+    </key>
+
+    <key name="show-gpu-temp" type="b">
+      <default>true</default>
+      <summary>Show GPU temperature</summary>
+      <description>Show GPU temperature next to usage</description>
+    </key>
+
+    <key name="gpu-icon-size" type="i">
+      <default>18</default>
+      <summary>GPU icon size</summary>
+      <description>Size of GPU icon in pixels</description>
+    </key>
+
+    <key name="gpu-value-color" type="s">
+      <default>'#ff00ff'</default>
+      <summary>GPU value color</summary>
+      <description>Color for GPU usage percentage</description>
+    </key>
+
+    <key name="gpu-temp-color" type="s">
+      <default>'#ff00ff'</default>
+      <summary>GPU temperature color</summary>
+      <description>Color for GPU temperature</description>
+    </key>
+
+    <key name="show-gpu-fan" type="b">
+      <default>false</default>
+      <summary>Show fan5 (water pump)</summary>
+      <description>Show fan5 sensor (water pump) next to GPU</description>
+    </key>
+
+    <key name="gpu-fan-color" type="s">
+      <default>'#ff00ff'</default>
+      <summary>Fan5 color</summary>
+      <description>Color for fan5 (water pump) speed</description>
+    </key>
+
+    <!-- Font Size Settings -->
+    <key name="value-font-size" type="i">
+      <default>11</default>
+      <summary>Value font size</summary>
+      <description>Font size for usage percentage values in pixels</description>
+    </key>
+
+    <key name="temp-font-size" type="i">
+      <default>11</default>
+      <summary>Temperature font size</summary>
+      <description>Font size for temperature values in pixels</description>
+    </key>
+
+  </schema>
+</schemalist>

@@ -1,0 +1,35 @@
+/* Justin Sensors - Stylesheet
+ * Custom styling for the system monitor panel indicator
+ */
+
+/* Main container for all sensors */
+.system-monitor-container {
+    spacing: 8px;
+    padding: 0 4px;
+}
+
+/* Individual sensor container (icon + values) */
+.sensor-container {
+    spacing: 4px;
+}
+
+/* Icon styling */
+.system-monitor-icon {
+    icon-size: 18px;
+    margin-right: 2px;
+}
+
+/* Usage percentage value - magenta/pink color */
+.system-monitor-value {
+    color: #ff00ff;
+    font-weight: bold;
+    font-size: 11px;
+    margin-right: 2px;
+}
+
+/* Temperature value - magenta/pink color */
+.system-monitor-temp {
+    color: #ff00ff;
+    font-weight: bold;
+    font-size: 11px;
+}
