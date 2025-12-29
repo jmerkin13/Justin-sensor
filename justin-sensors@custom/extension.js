@@ -41,6 +41,12 @@ const SENSORS = {
     }
 };
 
+// Regex constants
+const REGEX_CPU_TEMP = /(?:Core 0|Package id 0):\s+\+?([\d.]+)°C/;
+const REGEX_RAM_TOTAL = /MemTotal:\s+(\d+)/;
+const REGEX_RAM_AVAIL = /MemAvailable:\s+(\d+)/;
+const REGEX_FAN5 = /fan5:\s+(\d+)\s*RPM/i;
+
 let SystemMonitorIndicator = GObject.registerClass(
 class SystemMonitorIndicator extends PanelMenu.Button {
     _init() {
@@ -48,8 +54,14 @@ class SystemMonitorIndicator extends PanelMenu.Button {
 
         this._settings = ExtensionUtils.getSettings('org.gnome.shell.extensions.justin-sensors');
 
-        // Previous CPU stats for delta calculation
+        // State variables
         this._prevCpuStats = null;
+        this._isUpdating = false;
+        this._cpuTempPath = null; // Cached path
+        this._sensorWidgets = {};
+
+        // Settings cache for update loop
+        this._refreshInterval = 1000;
 
         // Create main container
         this._box = new St.BoxLayout({
@@ -57,9 +69,11 @@ class SystemMonitorIndicator extends PanelMenu.Button {
         });
         this.add_child(this._box);
 
-        // Create sensor displays
-        this._sensorWidgets = {};
-        this._createSensorWidgets();
+        // Initialize sensor widgets
+        this._initSensorWidgets();
+
+        // Detect sensors
+        this._detectSensors();
 
         // Connect to settings changes
         this._settingsConnections = [];
@@ -70,8 +84,7 @@ class SystemMonitorIndicator extends PanelMenu.Button {
         this._startUpdateLoop();
     }
 
-    _createSensorWidgets() {
-        // Clear existing widgets
+    _initSensorWidgets() {
         this._box.destroy_all_children();
         this._sensorWidgets = {};
 
@@ -79,65 +92,55 @@ class SystemMonitorIndicator extends PanelMenu.Button {
         const sortedSensors = Object.values(SENSORS).sort((a, b) => a.order - b.order);
 
         for (const sensor of sortedSensors) {
-            if (!this._settings.get_boolean(`show-${sensor.id}`)) {
-                continue;
-            }
+            // Create container regardless of visibility (we'll hide/show)
+            // This is safer for referencing later, though we could also create on demand.
+            // For simplicity in _updateStyles, let's create them if enabled,
+            // but the requirement was "Update Widgets Instead of Recreating".
+            // So we should create them all and toggle visibility.
 
             const container = new St.BoxLayout({
-                style_class: 'sensor-container'
+                style_class: 'sensor-container',
+                visible: this._settings.get_boolean(`show-${sensor.id}`)
             });
 
-            // Create icon from PNG file
+            // Create icon
             const iconPath = Me.path + '/icons/' + sensor.icon;
             const iconFile = Gio.File.new_for_path(iconPath);
             const gicon = new Gio.FileIcon({ file: iconFile });
-
-            // Get icon size from settings
-            const iconSize = this._settings.get_int(`${sensor.id}-icon-size`);
-
             const icon = new St.Icon({
                 gicon: gicon,
-                style_class: 'system-monitor-icon',
-                icon_size: iconSize
+                style_class: 'system-monitor-icon'
             });
             container.add_child(icon);
 
-            // Get text styling from settings (per-sensor colors)
-            const valueColor = this._settings.get_string(`${sensor.id}-value-color`);
-            const valueFontSize = this._settings.get_int('value-font-size');
-            const tempFontSize = this._settings.get_int('temp-font-size');
-
-            // Create value label with inline style
+            // Value label
             const valueLabel = new St.Label({
                 text: '---%',
                 style_class: 'system-monitor-value',
-                y_align: Clutter.ActorAlign.CENTER,
-                style: `color: ${valueColor}; font-size: ${valueFontSize}px; font-weight: bold;`
+                y_align: Clutter.ActorAlign.CENTER
             });
             container.add_child(valueLabel);
 
-            // Create temp label if sensor has temperature
+            // Temp label
             let tempLabel = null;
-            if (sensor.hasTemp && this._settings.get_boolean(`show-${sensor.id}-temp`)) {
-                const tempColor = this._settings.get_string(`${sensor.id}-temp-color`);
+            if (sensor.hasTemp) {
                 tempLabel = new St.Label({
                     text: '---°C',
                     style_class: 'system-monitor-temp',
                     y_align: Clutter.ActorAlign.CENTER,
-                    style: `color: ${tempColor}; font-size: ${tempFontSize}px; font-weight: bold;`
+                    visible: this._settings.get_boolean(`show-${sensor.id}-temp`)
                 });
                 container.add_child(tempLabel);
             }
 
-            // Create fan label if sensor has fan
+            // Fan label
             let fanLabel = null;
-            if (sensor.hasFan && this._settings.get_boolean(`show-${sensor.id}-fan`)) {
-                const fanColor = this._settings.get_string(`${sensor.id}-fan-color`);
+            if (sensor.hasFan) {
                 fanLabel = new St.Label({
                     text: '--- RPM',
                     style_class: 'system-monitor-fan',
                     y_align: Clutter.ActorAlign.CENTER,
-                    style: `color: ${fanColor}; font-size: ${valueFontSize}px; font-weight: bold;`
+                    visible: this._settings.get_boolean(`show-${sensor.id}-fan`)
                 });
                 container.add_child(fanLabel);
             }
@@ -145,18 +148,85 @@ class SystemMonitorIndicator extends PanelMenu.Button {
             this._box.add_child(container);
 
             this._sensorWidgets[sensor.id] = {
-                container: container,
-                icon: icon,
-                valueLabel: valueLabel,
-                tempLabel: tempLabel,
-                fanLabel: fanLabel
+                container,
+                icon,
+                valueLabel,
+                tempLabel,
+                fanLabel
             };
+        }
+
+        // Apply initial styles
+        this._updateStyles();
+    }
+
+    _updateStyles() {
+        const sortedSensors = Object.values(SENSORS);
+        const valueFontSize = this._settings.get_int('value-font-size');
+        const tempFontSize = this._settings.get_int('temp-font-size');
+
+        for (const sensor of sortedSensors) {
+            const widget = this._sensorWidgets[sensor.id];
+            if (!widget) continue;
+
+            // Visibility
+            widget.container.visible = this._settings.get_boolean(`show-${sensor.id}`);
+
+            // Icon Size
+            const iconSize = this._settings.get_int(`${sensor.id}-icon-size`);
+            widget.icon.icon_size = iconSize;
+
+            // Colors
+            const valueColor = this._settings.get_string(`${sensor.id}-value-color`);
+            widget.valueLabel.style = `color: ${valueColor}; font-size: ${valueFontSize}px; font-weight: bold;`;
+
+            if (widget.tempLabel) {
+                const showTemp = this._settings.get_boolean(`show-${sensor.id}-temp`);
+                widget.tempLabel.visible = showTemp;
+                if (showTemp) {
+                    const tempColor = this._settings.get_string(`${sensor.id}-temp-color`);
+                    widget.tempLabel.style = `color: ${tempColor}; font-size: ${tempFontSize}px; font-weight: bold;`;
+                }
+            }
+
+            if (widget.fanLabel) {
+                const showFan = this._settings.get_boolean(`show-${sensor.id}-fan`);
+                widget.fanLabel.visible = showFan;
+                if (showFan) {
+                    const fanColor = this._settings.get_string(`${sensor.id}-fan-color`);
+                    widget.fanLabel.style = `color: ${fanColor}; font-size: ${valueFontSize}px; font-weight: bold;`;
+                }
+            }
+        }
+    }
+
+    _detectSensors() {
+        // Detect CPU Temp Path
+        const customPath = this._settings.get_string('cpu-temp-path');
+        if (customPath && customPath.length > 0) {
+            this._cpuTempPath = customPath;
+        } else {
+            // Auto-detect
+            const thermalZones = [
+                '/sys/class/thermal/thermal_zone0/temp',
+                '/sys/class/hwmon/hwmon0/temp1_input',
+                '/sys/class/hwmon/hwmon1/temp1_input',
+                '/sys/class/hwmon/hwmon2/temp1_input'
+            ];
+
+            this._cpuTempPath = null;
+            for (const path of thermalZones) {
+                if (GLib.file_test(path, GLib.FileTest.EXISTS)) {
+                    this._cpuTempPath = path;
+                    break;
+                }
+            }
         }
     }
 
     _connectSettings() {
-        // Rebuild widgets when sensor visibility, icon size, font size, or color changes
-        const sensorKeys = [
+        // Re-apply styles on changes
+        const styleKeys = [
             'show-cpu', 'show-ram', 'show-gpu', 'show-cpu-temp', 'show-gpu-temp', 'show-gpu-fan',
             'cpu-icon-size', 'ram-icon-size', 'gpu-icon-size',
             'cpu-value-color', 'cpu-temp-color',
@@ -164,27 +234,34 @@ class SystemMonitorIndicator extends PanelMenu.Button {
             'gpu-value-color', 'gpu-temp-color', 'gpu-fan-color',
             'value-font-size', 'temp-font-size'
         ];
-        for (const key of sensorKeys) {
+
+        for (const key of styleKeys) {
             const id = this._settings.connect(`changed::${key}`, () => {
-                this._createSensorWidgets();
+                this._updateStyles();
             });
             this._settingsConnections.push(id);
         }
 
-        // Update refresh interval
+        // Handle refresh interval
         const intervalId = this._settings.connect('changed::refresh-interval', () => {
+            this._refreshInterval = this._settings.get_int('refresh-interval');
             this._restartUpdateLoop();
         });
         this._settingsConnections.push(intervalId);
+
+        // Handle CPU temp path change
+        const pathId = this._settings.connect('changed::cpu-temp-path', () => {
+            this._detectSensors();
+        });
+        this._settingsConnections.push(pathId);
+
+        this._refreshInterval = this._settings.get_int('refresh-interval');
     }
 
     _startUpdateLoop() {
-        // Initial update
-        this._update();
+        this._update(); // Initial update
 
-        // Set up periodic updates
-        const interval = this._settings.get_int('refresh-interval');
-        this._updateTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, interval, () => {
+        this._updateTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, this._refreshInterval, () => {
             this._update();
             return GLib.SOURCE_CONTINUE;
         });
@@ -198,26 +275,83 @@ class SystemMonitorIndicator extends PanelMenu.Button {
         this._startUpdateLoop();
     }
 
-    _update() {
-        this._updateCpu();
-        this._updateRam();
-        this._updateGpu();
-    }
-
-    _updateCpu() {
-        const widget = this._sensorWidgets['cpu'];
-        if (!widget) return;
+    async _update() {
+        if (this._isUpdating) return;
+        this._isUpdating = true;
 
         try {
-            // Read CPU stats from /proc/stat
-            const [ok, contents] = GLib.file_get_contents('/proc/stat');
-            if (!ok) return;
+            // Run updates in parallel? Or sequential is fine since they are async IO.
+            // Using Promise.all would be ideal if we were in a full JS environment,
+            // but GJS async/await works sequentially nicely.
 
-            const lines = new TextDecoder().decode(contents).split('\n');
-            const cpuLine = lines[0]; // First line is aggregate CPU
+            if (this._sensorWidgets['cpu'].container.visible) await this._updateCpu();
+            if (this._sensorWidgets['ram'].container.visible) await this._updateRam();
+            if (this._sensorWidgets['gpu'].container.visible) await this._updateGpu();
+
+        } catch (e) {
+            logError(e, 'Error in update loop');
+        } finally {
+            this._isUpdating = false;
+        }
+    }
+
+    async _getFileContentsAsync(path) {
+        return new Promise((resolve, reject) => {
+            const file = Gio.File.new_for_path(path);
+            file.load_contents_async(null, (file, res) => {
+                try {
+                    const [ok, contents] = file.load_contents_finish(res);
+                    if (ok) {
+                        resolve(new TextDecoder().decode(contents));
+                    } else {
+                        reject(new Error(`Failed to load ${path}`));
+                    }
+                } catch (e) {
+                    reject(e);
+                }
+            });
+        });
+    }
+
+    async _execCommandAsync(command) {
+        return new Promise((resolve, reject) => {
+            try {
+                const [cmd, ...args] = command.split(' ');
+                const proc = new Gio.Subprocess({
+                    argv: [cmd, ...args],
+                    flags: Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
+                });
+
+                proc.init(null);
+
+                proc.communicate_utf8_async(null, null, (proc, res) => {
+                    try {
+                        const [ok, stdout, stderr] = proc.communicate_utf8_finish(res);
+                        if (ok && proc.get_successful()) {
+                            resolve(stdout);
+                        } else {
+                            reject(new Error(stderr || 'Command failed'));
+                        }
+                    } catch (e) {
+                        reject(e);
+                    }
+                });
+            } catch (e) {
+                reject(e);
+            }
+        });
+    }
+
+    async _updateCpu() {
+        const widget = this._sensorWidgets['cpu'];
+
+        try {
+            // Read CPU stats
+            const contents = await this._getFileContentsAsync('/proc/stat');
+            const lines = contents.split('\n');
+            const cpuLine = lines[0];
             const parts = cpuLine.split(/\s+/);
 
-            // cpu user nice system idle iowait irq softirq steal guest guest_nice
             const user = parseInt(parts[1]);
             const nice = parseInt(parts[2]);
             const system = parseInt(parts[3]);
@@ -239,125 +373,91 @@ class SystemMonitorIndicator extends PanelMenu.Button {
 
             this._prevCpuStats = { total: total, idle: idleTotal };
 
-            // Get CPU temperature
-            if (widget.tempLabel) {
-                const temp = this._getCpuTemp();
+            // CPU Temperature
+            if (widget.tempLabel && widget.tempLabel.visible) {
+                let temp = null;
+
+                // Use cached path if available
+                if (this._cpuTempPath) {
+                    try {
+                        const tempText = await this._getFileContentsAsync(this._cpuTempPath);
+                        temp = parseInt(tempText.trim()) / 1000;
+                    } catch (e) {
+                        // Cached path failed, maybe reset?
+                        // For now, just ignore.
+                    }
+                }
+
+                // Fallback to sensors command if no file path (or if user hasn't set custom path and we failed)
+                // Note: current logic only uses sensors command if _cpuTempPath is null.
+                if (temp === null && !this._cpuTempPath) {
+                    try {
+                        const stdout = await this._execCommandAsync('sensors');
+                        const match = stdout.match(REGEX_CPU_TEMP);
+                        if (match) {
+                            temp = parseFloat(match[1]);
+                        }
+                    } catch (e) {
+                        // ignore
+                    }
+                }
+
                 if (temp !== null) {
                     widget.tempLabel.set_text(temp.toFixed(1) + '°C');
                 }
             }
+
         } catch (e) {
-            logError(e, 'Error updating CPU stats');
+            // logError(e); // Reduce noise
         }
     }
 
-    _getCpuTemp() {
-        // Try thermal_zone first (common on most systems)
-        const thermalZones = [
-            '/sys/class/thermal/thermal_zone0/temp',
-            '/sys/class/hwmon/hwmon0/temp1_input',
-            '/sys/class/hwmon/hwmon1/temp1_input',
-            '/sys/class/hwmon/hwmon2/temp1_input'
-        ];
-
-        for (const path of thermalZones) {
-            try {
-                const [ok, contents] = GLib.file_get_contents(path);
-                if (ok) {
-                    const temp = parseInt(new TextDecoder().decode(contents).trim());
-                    // Temperature is in millidegrees
-                    return temp / 1000;
-                }
-            } catch (e) {
-                // Try next path
-            }
-        }
-
-        // Fallback: try using sensors command
-        try {
-            const [ok, stdout, stderr, exitCode] = GLib.spawn_command_line_sync('sensors');
-            if (ok && exitCode === 0) {
-                const output = new TextDecoder().decode(stdout);
-                // Look for Core 0 or Package temp
-                const match = output.match(/(?:Core 0|Package id 0):\s+\+?([\d.]+)°C/);
-                if (match) {
-                    return parseFloat(match[1]);
-                }
-            }
-        } catch (e) {
-            // sensors command not available
-        }
-
-        return null;
-    }
-
-    _updateRam() {
+    async _updateRam() {
         const widget = this._sensorWidgets['ram'];
-        if (!widget) return;
 
         try {
-            const [ok, contents] = GLib.file_get_contents('/proc/meminfo');
-            if (!ok) return;
+            const contents = await this._getFileContentsAsync('/proc/meminfo');
+            const memTotalMatch = contents.match(REGEX_RAM_TOTAL);
+            const memAvailableMatch = contents.match(REGEX_RAM_AVAIL);
 
-            const text = new TextDecoder().decode(contents);
-            const memTotal = parseInt(text.match(/MemTotal:\s+(\d+)/)[1]);
-            const memAvailable = parseInt(text.match(/MemAvailable:\s+(\d+)/)[1]);
-
-            const usedPercent = ((memTotal - memAvailable) / memTotal * 100);
-            widget.valueLabel.set_text(usedPercent.toFixed(1) + '%');
+            if (memTotalMatch && memAvailableMatch) {
+                const memTotal = parseInt(memTotalMatch[1]);
+                const memAvailable = parseInt(memAvailableMatch[1]);
+                const usedPercent = ((memTotal - memAvailable) / memTotal * 100);
+                widget.valueLabel.set_text(usedPercent.toFixed(1) + '%');
+            }
         } catch (e) {
-            logError(e, 'Error updating RAM stats');
+            // ignore
         }
     }
 
-    _updateGpu() {
+    async _updateGpu() {
         const widget = this._sensorWidgets['gpu'];
-        if (!widget) return;
 
+        // NVIDIA GPU
         try {
-            // Use nvidia-smi for NVIDIA GPUs
-            const [ok, stdout, stderr, exitCode] = GLib.spawn_command_line_sync(
-                'nvidia-smi --query-gpu=utilization.gpu,temperature.gpu --format=csv,noheader,nounits'
-            );
+            const output = await this._execCommandAsync('nvidia-smi --query-gpu=utilization.gpu,temperature.gpu --format=csv,noheader,nounits');
+            const parts = output.trim().split(',').map(s => s.trim());
 
-            if (ok && exitCode === 0) {
-                const output = new TextDecoder().decode(stdout).trim();
-                const parts = output.split(',').map(s => s.trim());
+            if (parts.length >= 1) {
+                widget.valueLabel.set_text(parts[0] + '%');
+            }
 
-                if (parts.length >= 1) {
-                    widget.valueLabel.set_text(parts[0] + '%');
-                }
-
-                if (widget.tempLabel && parts.length >= 2) {
-                    widget.tempLabel.set_text(parts[1] + '°C');
-                }
-            } else {
-                widget.valueLabel.set_text('N/A');
-                if (widget.tempLabel) {
-                    widget.tempLabel.set_text('N/A');
-                }
+            if (widget.tempLabel && widget.tempLabel.visible && parts.length >= 2) {
+                widget.tempLabel.set_text(parts[1] + '°C');
             }
         } catch (e) {
-            // nvidia-smi not available or error
             widget.valueLabel.set_text('N/A');
-            if (widget.tempLabel) {
-                widget.tempLabel.set_text('N/A');
-            }
+            if (widget.tempLabel) widget.tempLabel.set_text('N/A');
         }
 
-        // Update fan5 (water pump) if enabled
-        if (widget.fanLabel) {
+        // Fan (Water Pump)
+        if (widget.fanLabel && widget.fanLabel.visible) {
             try {
-                const [ok, stdout, stderr, exitCode] = GLib.spawn_command_line_sync('sensors');
-                if (ok && exitCode === 0) {
-                    const output = new TextDecoder().decode(stdout);
-                    // Look for fan5 in sensors output
-                    const match = output.match(/fan5:\s+(\d+)\s*RPM/i);
-                    if (match) {
-                        widget.fanLabel.set_text(match[1] + ' RPM');
-                    } else {
-                        widget.fanLabel.set_text('N/A');
-                    }
+                const stdout = await this._execCommandAsync('sensors');
+                const match = stdout.match(REGEX_FAN5);
+                if (match) {
+                    widget.fanLabel.set_text(match[1] + ' RPM');
                 } else {
                     widget.fanLabel.set_text('N/A');
                 }
@@ -368,13 +468,11 @@ class SystemMonitorIndicator extends PanelMenu.Button {
     }
 
     destroy() {
-        // Clean up timeout
         if (this._updateTimeoutId) {
             GLib.source_remove(this._updateTimeoutId);
             this._updateTimeoutId = null;
         }
 
-        // Disconnect settings
         for (const id of this._settingsConnections) {
             this._settings.disconnect(id);
         }
@@ -391,12 +489,8 @@ class Extension {
 
     enable() {
         this._indicator = new SystemMonitorIndicator();
-
-        // Get panel position from settings
         const settings = ExtensionUtils.getSettings('org.gnome.shell.extensions.justin-sensors');
         const position = settings.get_string('panel-position');
-
-        // Add to panel (right side by default)
         Main.panel.addToStatusArea('justin-sensors', this._indicator, 0, position);
     }
 

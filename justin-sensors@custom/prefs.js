@@ -121,6 +121,24 @@ function fillPreferencesWindow(window) {
     cpuTempRow.add_suffix(cpuTempSwitch);
     cpuTempRow.set_activatable_widget(cpuTempSwitch);
 
+    // CPU Temp Custom Path
+    const cpuTempPathRow = new Adw.ActionRow({
+        title: 'CPU Temp Path',
+        subtitle: 'Custom path (leave empty for auto-detect)'
+    });
+    cpuGroup.add(cpuTempPathRow);
+
+    const cpuTempPathEntry = new Gtk.Entry({
+        placeholder_text: '/sys/class/thermal/...',
+        text: settings.get_string('cpu-temp-path'),
+        valign: Gtk.Align.CENTER,
+        width_chars: 25
+    });
+    cpuTempPathEntry.connect('changed', () => {
+        settings.set_string('cpu-temp-path', cpuTempPathEntry.get_text());
+    });
+    cpuTempPathRow.add_suffix(cpuTempPathEntry);
+
     // CPU icon size
     const cpuIconSizeRow = new Adw.ActionRow({
         title: 'CPU Icon Size',

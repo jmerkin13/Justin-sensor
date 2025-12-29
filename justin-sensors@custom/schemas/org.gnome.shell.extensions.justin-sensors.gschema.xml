@@ -28,6 +28,12 @@
       <description>Show CPU temperature next to usage</description>
     </key>
 
+    <key name="cpu-temp-path" type="s">
+      <default>''</default>
+      <summary>CPU temperature path</summary>
+      <description>Custom path to CPU temperature file (overrides auto-detection)</description>
+    </key>
+
     <key name="cpu-icon-size" type="i">
       <default>18</default>
       <summary>CPU icon size</summary>
