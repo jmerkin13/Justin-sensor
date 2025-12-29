@@ -71,6 +71,12 @@
       <description>Color for RAM usage percentage</description>
     </key>
 
+    <key name="ram-path" type="s">
+      <default>''</default>
+      <summary>RAM path</summary>
+      <description>Custom path to memory info file (default: /proc/meminfo)</description>
+    </key>
+
     <!-- GPU Settings -->
     <key name="show-gpu" type="b">
       <default>true</default>
@@ -100,6 +106,12 @@
       <default>'#ff00ff'</default>
       <summary>GPU temperature color</summary>
       <description>Color for GPU temperature</description>
+    </key>
+
+    <key name="gpu-command" type="s">
+      <default>''</default>
+      <summary>GPU command</summary>
+      <description>Custom command for GPU stats (default: nvidia-smi...)</description>
     </key>
 
     <key name="show-gpu-fan" type="b">

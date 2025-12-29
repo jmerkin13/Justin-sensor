@@ -278,6 +278,24 @@ function fillPreferencesWindow(window) {
     });
     ramValueColorRow.add_suffix(ramValueColorButton);
 
+    // RAM Custom Path
+    const ramPathRow = new Adw.ActionRow({
+        title: 'RAM Path',
+        subtitle: 'Custom path (default: /proc/meminfo)'
+    });
+    ramGroup.add(ramPathRow);
+
+    const ramPathEntry = new Gtk.Entry({
+        placeholder_text: '/proc/meminfo',
+        text: settings.get_string('ram-path'),
+        valign: Gtk.Align.CENTER,
+        width_chars: 25
+    });
+    ramPathEntry.connect('changed', () => {
+        settings.set_string('ram-path', ramPathEntry.get_text());
+    });
+    ramPathRow.add_suffix(ramPathEntry);
+
     // GPU group
     const gpuGroup = new Adw.PreferencesGroup({
         title: 'GPU (NVIDIA)',
@@ -381,6 +399,24 @@ function fillPreferencesWindow(window) {
         settings.set_string('gpu-temp-color', color);
     });
     gpuTempColorRow.add_suffix(gpuTempColorButton);
+
+    // GPU Custom Command
+    const gpuCommandRow = new Adw.ActionRow({
+        title: 'GPU Command',
+        subtitle: 'Custom command (default: nvidia-smi...)'
+    });
+    gpuGroup.add(gpuCommandRow);
+
+    const gpuCommandEntry = new Gtk.Entry({
+        placeholder_text: 'nvidia-smi ...',
+        text: settings.get_string('gpu-command'),
+        valign: Gtk.Align.CENTER,
+        width_chars: 25
+    });
+    gpuCommandEntry.connect('changed', () => {
+        settings.set_string('gpu-command', gpuCommandEntry.get_text());
+    });
+    gpuCommandRow.add_suffix(gpuCommandEntry);
 
     // GPU fan (water pump) toggle
     const gpuFanRow = new Adw.ActionRow({

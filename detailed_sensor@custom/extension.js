@@ -414,7 +414,11 @@ class SystemMonitorIndicator extends PanelMenu.Button {
         const widget = this._sensorWidgets['ram'];
 
         try {
-            const contents = await this._getFileContentsAsync('/proc/meminfo');
+            // Check for custom path
+            let ramPath = this._settings.get_string('ram-path');
+            if (!ramPath) ramPath = '/proc/meminfo';
+
+            const contents = await this._getFileContentsAsync(ramPath);
             const memTotalMatch = contents.match(REGEX_RAM_TOTAL);
             const memAvailableMatch = contents.match(REGEX_RAM_AVAIL);
 
@@ -432,9 +436,13 @@ class SystemMonitorIndicator extends PanelMenu.Button {
     async _updateGpu() {
         const widget = this._sensorWidgets['gpu'];
 
-        // NVIDIA GPU
+        // GPU Stats
         try {
-            const output = await this._execCommandAsync('nvidia-smi --query-gpu=utilization.gpu,temperature.gpu --format=csv,noheader,nounits');
+            // Check for custom command
+            let gpuCmd = this._settings.get_string('gpu-command');
+            if (!gpuCmd) gpuCmd = 'nvidia-smi --query-gpu=utilization.gpu,temperature.gpu --format=csv,noheader,nounits';
+
+            const output = await this._execCommandAsync(gpuCmd);
             const parts = output.trim().split(',').map(s => s.trim());
 
             if (parts.length >= 1) {
